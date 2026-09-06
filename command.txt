@@ -1,0 +1,126 @@
+================================================================================
+ RESTAURANT TABLE RESERVATION API - QUICK START COMMANDS (Windows PowerShell)
+================================================================================
+
+Project root: RestaurantTableReservationGo
+Default URL:  http://localhost:8080
+Swagger UI:   http://localhost:8080/swagger/index.html
+Health check: http://localhost:8080/health
+
+--------------------------------------------------------------------------------
+ PREREQUISITES
+--------------------------------------------------------------------------------
+1. Install Go 1.21+  ->  https://go.dev/dl/
+2. Open PowerShell in the project root folder (where go.mod is located)
+
+--------------------------------------------------------------------------------
+ FIRST-TIME SETUP (run once)
+--------------------------------------------------------------------------------
+# Download dependencies
+go mod tidy
+
+# Install Swagger generator (optional, for regenerating API docs)
+go install github.com/swaggo/swag/cmd/swag@latest
+
+# Regenerate Swagger docs (optional)
+swag init -g cmd/server/main.go -o docs
+
+# Build the application binary
+go build -o bin/restaurant-api.exe ./cmd/server
+
+--------------------------------------------------------------------------------
+ START THE APPLICATION
+--------------------------------------------------------------------------------
+Option A - Run directly (development):
+  go run ./cmd/server
+
+Option B - Run compiled binary (recommended for daily use):
+  .\bin\restaurant-api.exe
+
+Option C - Start in background and save process ID:
+  Start-Process -FilePath ".\bin\restaurant-api.exe" -WindowStyle Hidden -PassThru | Select-Object -ExpandProperty Id | Set-Content app.pid
+  Write-Host "Started. PID saved to app.pid"
+
+Verify server is running:
+  Invoke-RestMethod http://localhost:8080/health
+
+--------------------------------------------------------------------------------
+ STOP THE APPLICATION
+--------------------------------------------------------------------------------
+If started in foreground (Option A or B):
+  Press Ctrl+C in that terminal window
+
+If started in background (Option C):
+  Stop-Process -Id (Get-Content app.pid) -Force
+  Remove-Item app.pid -ErrorAction SilentlyContinue
+
+If you lost the PID, find and stop by port:
+  Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+
+--------------------------------------------------------------------------------
+ RESTART THE APPLICATION
+--------------------------------------------------------------------------------
+# Stop (background mode)
+if (Test-Path app.pid) { Stop-Process -Id (Get-Content app.pid) -Force; Remove-Item app.pid }
+
+# Rebuild (after code changes)
+go build -o bin/restaurant-api.exe ./cmd/server
+
+# Start again (background)
+Start-Process -FilePath ".\bin\restaurant-api.exe" -WindowStyle Hidden -PassThru | Select-Object -ExpandProperty Id | Set-Content app.pid
+
+# Verify
+Invoke-RestMethod http://localhost:8080/health
+
+--------------------------------------------------------------------------------
+ RUN TESTS
+--------------------------------------------------------------------------------
+go test ./... -v
+
+With coverage:
+go test ./... -cover
+
+--------------------------------------------------------------------------------
+ ENVIRONMENT VARIABLES (optional)
+--------------------------------------------------------------------------------
+$env:PORT = "8080"                          # Server port (default: 8080)
+$env:DATABASE_PATH = "data/restaurant.db"   # SQLite database file
+$env:CANCELLATION_LEAD_HOURS = "2"          # Hours before slot when cancel is blocked
+
+Example - start on port 9090:
+  $env:PORT = "9090"; go run ./cmd/server
+
+--------------------------------------------------------------------------------
+ SAMPLE API CALLS (PowerShell)
+--------------------------------------------------------------------------------
+# 1. Create a table
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/tables `
+  -ContentType "application/json" `
+  -Body '{"table_number":"T1","capacity":4,"location":"indoor"}'
+
+# 2. View available slots for a date
+Invoke-RestMethod "http://localhost:8080/api/v1/slots?date=2026-12-01"
+
+# 3. Book a reservation (smart assignment - omit table_id)
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/reservations `
+  -ContentType "application/json" `
+  -Body '{"customer_name":"John Doe","customer_email":"john@example.com","customer_phone":"555-1234","guest_count":2,"reservation_date":"2026-12-01","time_slot":"19:00","special_requests":"Window seat"}'
+
+# 4. View reservation (replace 1 with actual ID)
+Invoke-RestMethod http://localhost:8080/api/v1/reservations/1
+
+# 5. Cancel reservation
+Invoke-RestMethod -Method Delete http://localhost:8080/api/v1/reservations/1
+
+--------------------------------------------------------------------------------
+ ASSUMPTIONS (implementation decisions)
+--------------------------------------------------------------------------------
+- Database: SQLite (file at data/restaurant.db) - zero external setup
+- Time slots: 12:00, 13:00, 14:00, 18:00, 19:00, 20:00, 21:00 (fixed slots)
+- Table location: "indoor" or "outdoor"
+- Cancellation rule: cannot cancel within 2 hours of the reservation slot
+- Smart assignment: when table_id is omitted, assigns the smallest available table
+  that fits the guest count for the requested date and slot
+- Double-booking prevention: one confirmed reservation per table per slot
+
+================================================================================

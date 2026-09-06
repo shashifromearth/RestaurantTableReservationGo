@@ -1,0 +1,285 @@
+basePath: /api/v1
+definitions:
+  apperror.AppError:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  domain.Location:
+    enum:
+    - indoor
+    - outdoor
+    type: string
+    x-enum-varnames:
+    - LocationIndoor
+    - LocationOutdoor
+  domain.ReservationStatus:
+    enum:
+    - confirmed
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - ReservationStatusConfirmed
+    - ReservationStatusCancelled
+  dto.AvailableSlotResponse:
+    properties:
+      available_tables:
+        items:
+          $ref: '#/definitions/dto.TableResponse'
+        type: array
+      time_slot:
+        type: string
+    type: object
+  dto.AvailableSlotsResponse:
+    properties:
+      date:
+        type: string
+      slots:
+        items:
+          $ref: '#/definitions/dto.AvailableSlotResponse'
+        type: array
+    type: object
+  dto.BookReservationRequest:
+    properties:
+      customer_email:
+        type: string
+      customer_name:
+        type: string
+      customer_phone:
+        type: string
+      guest_count:
+        minimum: 1
+        type: integer
+      reservation_date:
+        type: string
+      special_requests:
+        type: string
+      table_id:
+        type: integer
+      time_slot:
+        type: string
+    required:
+    - customer_email
+    - customer_name
+    - customer_phone
+    - guest_count
+    - reservation_date
+    - time_slot
+    type: object
+  dto.CancelReservationResponse:
+    properties:
+      id:
+        type: integer
+      status:
+        $ref: '#/definitions/domain.ReservationStatus'
+    type: object
+  dto.CreateTableRequest:
+    properties:
+      capacity:
+        minimum: 1
+        type: integer
+      location:
+        $ref: '#/definitions/domain.Location'
+      table_number:
+        type: string
+    required:
+    - capacity
+    - location
+    - table_number
+    type: object
+  dto.ReservationResponse:
+    properties:
+      created_at:
+        type: string
+      customer_email:
+        type: string
+      customer_name:
+        type: string
+      customer_phone:
+        type: string
+      guest_count:
+        type: integer
+      id:
+        type: integer
+      reservation_date:
+        type: string
+      special_requests:
+        type: string
+      status:
+        $ref: '#/definitions/domain.ReservationStatus'
+      table:
+        $ref: '#/definitions/dto.TableResponse'
+      time_slot:
+        type: string
+    type: object
+  dto.TableResponse:
+    properties:
+      capacity:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      location:
+        $ref: '#/definitions/domain.Location'
+      table_number:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: REST API for restaurant table reservations with smart table assignment.
+  title: Restaurant Table Reservation API
+  version: "1.0"
+paths:
+  /reservations:
+    post:
+      consumes:
+      - application/json
+      description: Create a reservation. Omit table_id for smart table assignment.
+      parameters:
+      - description: Reservation details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BookReservationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ReservationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Book a table
+      tags:
+      - reservations
+  /reservations/{id}:
+    delete:
+      description: Cancellation must occur before the configured lead time
+      parameters:
+      - description: Reservation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CancelReservationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Cancel a reservation
+      tags:
+      - reservations
+    get:
+      parameters:
+      - description: Reservation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ReservationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: View a reservation
+      tags:
+      - reservations
+  /slots:
+    get:
+      description: Shows available time slots and tables for a date
+      parameters:
+      - description: Date (YYYY-MM-DD)
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AvailableSlotsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: View available slots
+      tags:
+      - reservations
+  /tables:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.TableResponse'
+            type: array
+      summary: List all tables
+      tags:
+      - tables
+    post:
+      consumes:
+      - application/json
+      description: Restaurant staff adds a new table
+      parameters:
+      - description: Table details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTableRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.TableResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Create a table
+      tags:
+      - tables
+swagger: "2.0"

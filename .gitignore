@@ -1,0 +1,24 @@
+# Binaries
+/bin/
+*.exe
+*.exe~
+
+# Database
+/data/
+
+# Go
+vendor/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Swagger generated (regenerate with: swag init -g cmd/server/main.go -o docs)
+# docs/ is committed for convenience
+
+# PID file for process management
+app.pid
